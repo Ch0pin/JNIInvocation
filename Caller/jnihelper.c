@@ -77,3 +77,28 @@ int initialize_java_environment(JavaCTX *ctx, char **jvm_options, uint8_t jvm_nb
          
     return JNI_OK;
 }
+
+int cleanup_java_env(JavaCTX *ctx) {
+  void (*JniInvocationDestroy)(JniInvocationImpl*);
+  void* runtime_dso;
+
+  printf("[+] Cleanup Java environment\n");
+
+  if (ctx == NULL || ctx->vm == NULL) return JNI_ERR;
+
+  if ((runtime_dso = dlopen(HELPER_LIB_DSO, RTLD_NOW)) == NULL) {
+    printf("[!] %s\n", dlerror());
+    return JNI_ERR;
+  }
+
+  if ((JniInvocationDestroy = dlsym(runtime_dso, "JniInvocationDestroy")) == NULL) {
+    printf("[!] %s\n", dlerror());
+    return JNI_ERR;
+  }
+
+  (*ctx->vm)->DetachCurrentThread(ctx->vm);
+  (*ctx->vm)->DestroyJavaVM(ctx->vm);
+  JniInvocationDestroy(ctx->invoc);
+
+  return JNI_OK;
+}
